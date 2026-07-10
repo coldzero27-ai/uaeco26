@@ -20,6 +20,20 @@ YAHOO_ASSETS = {
     '^GSPC': 'SPX', '^DJI': 'DJI', '^IXIC': 'NDX',
     'NVDA': 'NVDA', 'AAPL': 'AAPL', 'MSFT': 'MSFT', 'TSLA': 'TSLA',
 }
+YAHOO_UAE = {  # candidate symbols - misses are logged, not fatal
+    'FAB.AD': 'FAB', 'ADNOCGAS.AD': 'ADNOCGAS', 'ALDAR.AD': 'ALDAR',
+    'EAND.AD': 'EAND', 'EMAAR.DU': 'EMAAR', 'EMIRATESNBD.DU': 'ENBD',
+}
+FLAGSHIPS = {  # aligned with the dashboard's company order per country
+    'cn': ['0700.HK', '9988.HK', '1211.HK', '1398.HK'],
+    'in': ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS'],
+    'sa': ['2222.SR', '1120.SR', '2010.SR', '7010.SR'],
+    'gb': ['SHEL.L', 'AZN.L', 'HSBA.L', 'BP.L'],
+    'jp': ['7203.T', '6758.T', '8306.T', '7974.T'],
+    'eg': ['COMI.CA', 'SWDY.CA', 'TMGH.CA', 'HRHO.CA'],
+    'tr': ['THYAO.IS', 'KCHOL.IS', 'BIMAS.IS', 'ASELS.IS'],
+    'id': ['BBCA.JK', 'BMRI.JK', 'TLKM.JK', 'ASII.JK'],
+}
 YAHOO_COUNTRY = {
     '^FTSE': 'gb', '^N225': 'jp', '000001.SS': 'cn', '^NSEI': 'in',
     '^TASI.SR': 'sa', 'XU100.IS': 'tr', '^JKSE': 'id', '^KSE': 'pk', '^CASE30': 'eg',
@@ -39,6 +53,8 @@ def yf_quote(sym):
     import yfinance as yf
     fi = yf.Ticker(sym).fast_info
     price = float(fi.last_price)
+    if not price or price <= 0:
+        raise ValueError('zero/empty price')
     prev = float(fi.previous_close or price)
     return {'price': round(price, 4),
             'chg': round((price - prev) / prev * 100, 2) if prev else 0.0}
@@ -68,7 +84,24 @@ def yahoo_all():
         except Exception as e:
             print('miss', sym, repr(e)[:90])
         time.sleep(0.3)
-    return assets, countries
+    for sym, key in YAHOO_UAE.items():
+        try:
+            assets[key] = grab(sym)
+            print('UAE hit:', sym)
+        except Exception as e:
+            print('UAE miss', sym, repr(e)[:70])
+        time.sleep(0.3)
+    flagships = {}
+    for cc, syms in FLAGSHIPS.items():
+        row = []
+        for sym in syms:
+            try:
+                row.append(grab(sym))
+            except Exception as e:
+                print('flagship miss', sym, repr(e)[:70]); row.append(None)
+            time.sleep(0.25)
+        flagships[cc] = row
+    return assets, countries, flagships
 
 # ---- Stooq (fallback for anything Yahoo missed) ----
 STOOQ_ASSETS = {'xauusd': 'GOLD', 'xagusd': 'SILVER', 'cb.f': 'BRENT', 'cl.f': 'WTI',
@@ -128,7 +161,7 @@ def main():
         try: prev = json.load(open(OUT))
         except Exception: prev = {}
 
-    assets, countries = yahoo_all()
+    assets, countries, flagships = yahoo_all()
     assets = stooq_fill(assets)
 
     wire, newsmap = [], {}
@@ -154,10 +187,10 @@ def main():
                     m.append({'d': today, 'chg': q['chg'], 't': top[0]['t']}); marks[k] = m[-40:]
 
     out = {'updated': datetime.datetime.utcnow().isoformat() + 'Z',
-           'assets': assets, 'countries': countries, 'fx': fx(),
+           'assets': assets, 'countries': countries, 'flagships': flagships, 'fx': fx(),
            'news': wire, 'newsFull': newsmap, 'history': hist, 'marks': marks}
     json.dump(out, open(OUT, 'w'), separators=(',', ':'))
-    print('wrote data.json:', len(assets), 'assets |', len(countries), 'country indices |', len(wire), 'headlines')
+    print('wrote data.json:', len(assets), 'assets |', len(countries), 'country indices |', sum(1 for r in flagships.values() for x in r if x), 'flagship stocks |', len(wire), 'headlines')
 
 if __name__ == '__main__':
     main()
