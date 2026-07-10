@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Energy & Finance Wall - data pipeline v2.
-Primary source: Yahoo Finance chart API (keyless, proper prev-close daily change).
-Fallback: Stooq. FX: open.er-api.com. News: Google News RSS.
+Energy & Finance Wall - data pipeline v3.
+Primary source: yfinance library (handles Yahoo's cookie/crumb anti-bot handshake).
+Fallbacks: raw Yahoo chart API, then Stooq. FX: open.er-api.com. News: Google News RSS.
 """
 import csv, io, json, os, time, urllib.request, urllib.parse, datetime
 import xml.etree.ElementTree as ET
@@ -35,20 +35,39 @@ def yahoo(sym):
     chg = round((price - prev) / prev * 100, 2) if prev else 0.0
     return {'price': round(float(price), 4), 'chg': chg}
 
+def yf_quote(sym):
+    import yfinance as yf
+    fi = yf.Ticker(sym).fast_info
+    price = float(fi.last_price)
+    prev = float(fi.previous_close or price)
+    return {'price': round(price, 4),
+            'chg': round((price - prev) / prev * 100, 2) if prev else 0.0}
+
 def yahoo_all():
     assets, countries = {}, {}
+    try:
+        import yfinance  # noqa: F401
+        grab = yf_quote
+        print('using yfinance', yfinance.__version__)
+    except ImportError:
+        grab = yahoo
+        print('yfinance unavailable, using raw HTTP')
     for sym, key in YAHOO_ASSETS.items():
         try:
-            assets[key] = yahoo(sym)
+            assets[key] = grab(sym)
         except Exception as e:
-            print('yahoo miss', sym, e)
-        time.sleep(0.35)
+            print('miss', sym, repr(e)[:90])
+            try:
+                assets[key] = yahoo(sym)
+            except Exception:
+                pass
+        time.sleep(0.3)
     for sym, cc in YAHOO_COUNTRY.items():
         try:
-            countries[cc] = yahoo(sym)
+            countries[cc] = grab(sym)
         except Exception as e:
-            print('yahoo miss', sym, e)
-        time.sleep(0.35)
+            print('miss', sym, repr(e)[:90])
+        time.sleep(0.3)
     return assets, countries
 
 # ---- Stooq (fallback for anything Yahoo missed) ----
