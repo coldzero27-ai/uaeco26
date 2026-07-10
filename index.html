@@ -122,17 +122,18 @@ html[data-theme="light"] #bgveil{background:rgba(238,241,244,.55)}
 .obadge{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;margin-left:6px}
 .oh{background:var(--up-soft);color:var(--up)}.ohu{background:var(--dn-soft);color:var(--dn)}.om{background:var(--gold-soft);color:var(--gold)}
 /* mood + story */
-#cbot{display:grid;grid-template-columns:250px 1fr;gap:12px;height:170px}
+#cbot{display:grid;grid-template-columns:1fr 320px;gap:12px;height:150px}
 #mood{display:flex;flex-direction:column;align-items:center;justify-content:center}
 #moodCv{width:190px;height:105px}
 #moodLab{font-size:15px;font-weight:800;margin-top:-6px}
 #story{display:flex;flex-direction:column;justify-content:center}
-#storyTxt{font-size:19px;line-height:1.45;font-weight:500;margin-top:6px}
+#storyTxt{font-size:20.5px;line-height:1.5;font-weight:500;margin-top:6px;max-width:1080px}
 #storyTxt em{color:var(--gold);font-style:normal;font-weight:700}
 /* strips */
-#strip{display:grid;grid-template-columns:1fr 420px;gap:12px;height:78px}
-#odds{display:flex;gap:10px;align-items:center;overflow:hidden;padding:10px 16px}
-.oc{white-space:nowrap;border-radius:22px;padding:8px 14px;font-size:14px;font-weight:600;background:var(--card2);border:1px solid var(--stroke)}
+#strip{display:block;height:66px}
+#odds{display:flex;align-items:center;overflow:hidden;padding:10px 16px;height:100%}
+#oddsIn{display:flex;gap:12px;white-space:nowrap;animation:mq 80s linear infinite}
+.oc{white-space:nowrap;border-radius:22px;padding:8px 16px;font-size:15px;font-weight:600;background:var(--card2);border:1px solid var(--stroke)}
 .oc b{color:var(--gold);font-weight:800;margin-left:6px}
 #movers{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:6px 16px}
 .rrow{display:grid;grid-template-columns:78px 1fr 66px;align-items:center;gap:8px}
@@ -200,6 +201,12 @@ html[data-theme="light"] #bgveil{background:rgba(238,241,244,.55)}
       <div class="ttl">Gold &amp; Silver</div><div class="sub">Where money hides when the world gets nervous</div>
       <div class="badge sample">OFFLINE</div><div id="metRows"></div>
     </div>
+    <div class="card" id="mood" style="flex:.95">
+      <div class="badge sample" id="fngBadge">OFFLINE</div>
+      <div class="ttl">Market mood</div>
+      <div id="pulseWrap"><div id="pulseRing"></div><canvas id="moodCv" width="380" height="210"></canvas></div>
+      <div id="moodLab">—</div>
+    </div>
   </div>
 
   <div class="col">
@@ -207,16 +214,11 @@ html[data-theme="light"] #bgveil{background:rgba(238,241,244,.55)}
       <div id="heroBody" style="display:flex;flex-direction:column;flex:1;min-height:0"></div>
     </div>
     <div id="cbot">
-      <div class="card" id="mood">
-        <div class="badge sample" id="fngBadge">OFFLINE</div>
-        <div class="ttl">Market mood</div>
-        <div id="pulseWrap"><div id="pulseRing"></div><canvas id="moodCv" width="380" height="210"></canvas></div>
-        <div id="moodLab">—</div>
-      </div>
       <div class="card" id="story">
         <div class="ttl">Today's story</div>
         <div id="storyTxt"></div>
       </div>
+      <div class="card" id="movers"><div class="ttl" style="font-size:11px">Today’s race</div><div id="mvList"></div></div>
     </div>
   </div>
 
@@ -237,8 +239,7 @@ html[data-theme="light"] #bgveil{background:rgba(238,241,244,.55)}
 </div>
 
 <div id="strip">
-  <div class="card" id="odds"><div class="badge live" id="oddsBadge">LIVE</div></div>
-  <div class="card" id="movers"><div class="ttl" style="font-size:11px">Today’s race</div><div id="mvList"></div></div>
+  <div class="card" id="odds"><div class="badge live" id="oddsBadge">LIVE</div><div id="oddsIn"></div></div>
 </div>
 
 <div class="card" id="tick"><div id="tickIn"></div></div>
@@ -483,12 +484,13 @@ function mood(){const ups=Object.values(A).filter(a=>a.chg>0).length;const bread
  gauge($('moodCv'),v);$('moodLab').textContent=v>65?'GREED — markets confident':v>45?'NEUTRAL — markets calm':'FEAR — markets nervous';return v}
 function story(){const oil=A.BRENT.chg,g=A.GOLD.chg,adx=A.ADX.chg,fed=(ODDS.find(o=>/fed/i.test(o.q))||{p:72}).p;
  $('storyTxt').innerHTML=`Oil ${oil>=0?'up':'down'} <em>${sgn(oil)}</em> and Fed-cut odds at <em>${fed}%</em> — gold ${g>=0?'holding near records':'easing'} at <em>$${fmt(A.GOLD.price,0)}</em>, while UAE stocks trade <em>${sgn(adx)}</em> ${adx>=0?'higher, led by energy names':'softer'}.`}
-function movers(){const all=Object.values(A).sort((a,b)=>b.chg-a.chg);const sel=[all[0],all[1],all[all.length-1]];
+function movers(){const all=Object.values(A).sort((a,b)=>b.chg-a.chg);const sel=[all[0],all[1],all[all.length-2],all[all.length-1]];
  const mx=Math.max(...sel.map(a=>Math.abs(a.chg)),.1);
  $('mvList').innerHTML=sel.map(a=>{const w=Math.min(48,Math.abs(a.chg)/mx*48);const up=a.chg>=0;
  return `<div class="rrow"><span class="rn">${a.name}</span><div class="rtrack"><div class="rbar ${up?'rb-up':'rb-dn'}" style="${up?'left:50%':'right:50%'};width:${w}%"></div></div><span class="rv num ${cls(a.chg)}">${sgn(a.chg)}</span></div>`}).join('')}
 let oddsLive=true;
-function oddsPaint(){$('odds').innerHTML=`<div class="badge ${oddsLive?'live':'sample'}" id="oddsBadge">${oddsLive?'LIVE':'OFFLINE'}</div>`+ODDS.slice(0,6).map(o=>`<span class="oc">${o.q}<b class="num">${o.p}%</b></span>`).join('')}
+function oddsPaint(){$('oddsBadge').className='badge '+(oddsLive?'live':'sample');$('oddsBadge').textContent=oddsLive?'LIVE':'OFFLINE';
+ const h=ODDS.map(o=>`<span class="oc">${o.q}<b class="num">${o.p}%</b></span>`).join('');$('oddsIn').innerHTML=h+h}
 function ticker(){const ks=Object.keys(A);let s=ks.map(k=>{const a=A[k];return `<span class="tk"><span>${a.name}</span><b class="num">${a.unit}${fmt(a.price,a.dec)}</b> <b class="num ${cls(a.chg)}">${sgn(a.chg)}</b></span>`}).join('');
  s+=`<span class="tk"><span>USD/INR</span><b class="num">${fmt(FX.INR,2)}</b></span><span class="tk"><span>USD/PKR</span><b class="num">${fmt(FX.PKR,1)}</b></span><span class="tk"><span>USD/PHP</span><b class="num">${fmt(FX.PHP,2)}</b></span><span class="tk"><span>EUR/USD</span><b class="num">${fmt(1/FX.EUR,4)}</b></span><span class="tk"><span>Gold AED/g</span><b class="num" style="color:var(--gold)">${fmt(AEDoz(A.GOLD.price),1)}</b></span>`;
  $('tickIn').innerHTML=s+s}
