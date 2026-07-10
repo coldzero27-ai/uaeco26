@@ -152,7 +152,7 @@ html[data-theme="light"] #bgveil{background:rgba(238,241,244,.55)}
 .foot{font-size:10.5px;color:var(--dim);text-align:right;margin-top:-6px}
 #stage{position:relative}
 #wireBar{height:32px;overflow:hidden;display:flex;align-items:center;padding:0 14px}
-#wireIn{display:flex;gap:48px;white-space:nowrap;animation:mq 95s linear infinite;font-size:13.5px;color:var(--mut)}
+#wireIn{display:flex;gap:48px;white-space:nowrap;animation:mq 135s linear infinite;font-size:13.5px;color:var(--mut)}
 .wtag{color:var(--gold);font-weight:700;margin-right:7px;letter-spacing:.06em}
 #toasts{position:absolute;top:146px;right:26px;z-index:50;display:flex;flex-direction:column;gap:8px}
 .toast{background:var(--card);border:1px solid var(--stroke);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border-radius:12px;padding:9px 14px;min-width:260px;max-width:340px;transform:translateX(130%);animation:tin .45s forwards;font-size:13px}
@@ -526,6 +526,9 @@ async function tryDataJson(){try{const d=await jget('data.json?t='+Date.now());i
  if(d.assets&&(d.assets.FAB||d.assets.ADX))setBadge('#rc1 .badge',true);
  if(country)countryColumns(country);
  if(d.news&&d.news.length){WIRE=d.news;renderWire()}
+ if(d.newsFull){const M={us:'US',cn:'CHINA',in:'INDIA',sa:'SAUDI',gb:'UK',jp:'JAPAN',pk:'PAKISTAN',eg:'EGYPT',tr:'TURKIYE',id:'INDONESIA'};
+  C.forEach(c=>{const it=d.newsFull[M[c.c]];if(it&&it.length)c.news=it.map(x=>x.t)});
+  if(country)heroCountry(country)}
  paintAll();ticker();movers();story()}catch(e){}}
 /* ---------- news wire / toasts / typing ---------- */
 let WIRE=[['GOLD','near records as rate-cut bets build'],['OIL','OPEC+ holds output steady into autumn'],['MURBAN','Gulf tanker rates ease'],['ADX','energy names lead Abu Dhabi higher'],['US','mega-cap earnings beat estimates'],['BTC','ETF inflows continue for a sixth week'],['FED','decision night July 29 \u2014 markets price a cut'],['INDIA','foreign inflows push Nifty to record'],['T\u00dcRK\u0130YE','central bank continues gradual easing'],['EGYPT','Gulf investment pledges lift EGX']];
