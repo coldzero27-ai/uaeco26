@@ -135,9 +135,12 @@ def fx():
 
 # ---- News ----
 TOPICS = [('GOLD','gold price'),('OIL','oil price OPEC'),('ADX','Abu Dhabi stock market'),
-          ('US','US stock market'),('BTC','bitcoin'),('INDIA','India economy markets'),
-          ('SAUDI','Saudi Tadawul economy'),('EGYPT','Egypt economy'),
-          ('TURKIYE','Turkey economy lira'),('JAPAN','Japan Nikkei economy')]
+          ('US','US stock market'),('BTC','bitcoin'),
+          ('CHINA','China economy markets'),('INDIA','India economy markets'),
+          ('SAUDI','Saudi Tadawul economy'),('UK','UK economy FTSE'),
+          ('JAPAN','Japan Nikkei economy'),('PAKISTAN','Pakistan economy KSE'),
+          ('EGYPT','Egypt economy'),('TURKIYE','Turkey economy lira'),
+          ('INDONESIA','Indonesia economy markets')]
 def news(query, n=2):
     try:
         url = ('https://news.google.com/rss/search?q=' + urllib.parse.quote(query)
