@@ -340,8 +340,16 @@ let ODDS=ODDS_FALLBACK.map(o=>({q:o[0],p:o[1]}));
 /* ---------- charts ---------- */
 function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
 function spark(cv,data,up){const c=cv.getContext('2d'),W=cv.width,H=cv.height;c.clearRect(0,0,W,H);const mn=Math.min(...data),mx=Math.max(...data),sp=(mx-mn)||1;c.beginPath();data.forEach((v,i)=>{const x=i/(data.length-1)*W,y=H-4-(v-mn)/sp*(H-8);i?c.lineTo(x,y):c.moveTo(x,y)});c.strokeStyle=up?css('--up'):css('--dn');c.lineWidth=2.4;c.stroke()}
-function hero(cv,data,up,dots){const c=cv.getContext('2d');const W=cv.width=cv.clientWidth*2,H=cv.height=cv.clientHeight*2;c.clearRect(0,0,W,H);const mn=Math.min(...data),mx=Math.max(...data),sp=(mx-mn)||1;const X=i=>i/(data.length-1)*(W-20)+10,Y=v=>H-14-(v-mn)/sp*(H-40);
-c.strokeStyle='rgba(140,160,180,.15)';c.lineWidth=1;for(let g=0;g<4;g++){const y=14+g*(H-28)/3;c.beginPath();c.moveTo(10,y);c.lineTo(W-10,y);c.stroke()}
+function hero(cv,data,up,dots,opts){opts=opts||{};const c=cv.getContext('2d');const W=cv.width=cv.clientWidth*2,H=cv.height=cv.clientHeight*2;c.clearRect(0,0,W,H);
+const ML=10,MR=118,MT=14,MB=34;const mn=Math.min(...data),mx=Math.max(...data),sp=(mx-mn)||1;
+const X=i=>i/(data.length-1)*(W-ML-MR)+ML,Y=v=>H-MB-(v-mn)/sp*(H-MT-MB);
+c.strokeStyle='rgba(140,160,180,.15)';c.lineWidth=1;
+c.font='500 21px Spline Sans Mono';c.textAlign='left';
+for(let g=0;g<4;g++){const y=MT+g*(H-MT-MB)/3;c.beginPath();c.moveTo(ML,y);c.lineTo(W-MR+8,y);c.stroke();
+ const v=mx-g*sp/3;c.fillStyle=css('--dim');c.fillText((opts.unit||'')+fmt(v,opts.dec!==undefined?opts.dec:2),W-MR+16,y+7)}
+c.fillStyle=css('--dim');c.font='500 20px Archivo';c.textAlign='left';c.fillText(opts.xl||'',ML,H-8);
+c.textAlign='right';c.fillText(opts.xr||'',W-MR+2,H-8);
+if(opts.tag){c.textAlign='left';c.fillStyle=css('--dim');c.font='italic 19px Archivo';c.fillText(opts.tag,ML+4,MT+22)}
 const col=up?css('--up'):css('--dn');const grad=c.createLinearGradient(0,0,0,H);grad.addColorStop(0,up?'rgba(47,208,138,.28)':'rgba(255,97,97,.28)');grad.addColorStop(1,'rgba(0,0,0,0)');
 c.beginPath();data.forEach((v,i)=>{const x=X(i),y=Y(v);i?c.lineTo(x,y):c.moveTo(x,y)});c.strokeStyle=col;c.lineWidth=4;c.stroke();
 c.lineTo(X(data.length-1),H);c.lineTo(X(0),H);c.closePath();c.fillStyle=grad;c.fill();
@@ -353,7 +361,7 @@ const g=c.createLinearGradient(0,0,W,0);g.addColorStop(0,css('--dn'));g.addColor
 c.strokeStyle=g;c.beginPath();c.arc(cx,cy,r,Math.PI,Math.PI*(1+val/100));c.stroke();
 const a=Math.PI*(1+val/100);c.beginPath();c.arc(cx+Math.cos(a)*r,cy+Math.sin(a)*r,11,0,7);c.fillStyle=css('--text');c.fill();
 c.fillStyle=css('--text');c.font='700 44px Spline Sans Mono';c.textAlign='center';c.fillText(Math.round(val),cx,cy-14)}
-function animHero(cv,data,up,dots){const t0=performance.now();function st(t){const p=Math.min(1,(t-t0)/650);const n=Math.max(2,Math.round(data.length*p));hero(cv,data.slice(0,n),up,p===1?dots:null);if(p<1)requestAnimationFrame(st)}requestAnimationFrame(st)}
+function animHero(cv,data,up,dots,opts){const t0=performance.now();function st(t){const p=Math.min(1,(t-t0)/650);const n=Math.max(2,Math.round(data.length*p));hero(cv,data.slice(0,n),up,p===1?dots:null,opts);if(p<1)requestAnimationFrame(st)}requestAnimationFrame(st)}
 /* ---------- render rows ---------- */
 function rowHTML(k,big){const a=A[k];return `<div class="arow ${big?'big':''}" data-k="${k}">
 <div><div class="an">${a.name}</div><div class="as">${a.sub}</div></div>
@@ -372,11 +380,18 @@ function paintAll(){
 }
 /* ---------- hero (asset) ---------- */
 const TFS={'1D':[40,.02],'1W':[56,.035],'1M':[60,.06],'1Y':[72,.16]};
+const TFL={'1D':'24h ago','1W':'7 days ago','1M':'1 month ago','1Y':'1 year ago'};
+let HIST={};
+function fdate(d){const p=d.split('-');return +p[2]+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1]-1]}
 let focusList=['GOLD','BRENT','BTC','MURBAN','SPX','ADX','ETH','SILVER'];
 let fi=0,tf='1D',pinned=null,country=null,play=false,rotT=null;
 function trend(k){const a=A[k];const y=series(k+'1Y',a.price,.16,72);const m=series(k+'1M',a.price,.06,60);const avg=m.reduce((s,v)=>s+v,0)/m.length;const hi=Math.max(...y);
  return `${a.name} is ${a.price>=avg?'above':'below'} its 1-month average and ${((1-a.price/hi)*100).toFixed(1)}% off its yearly high.`}
-function heroAsset(k){const a=A[k];const dat=series(k+tf,a.price,TFS[tf][1],TFS[tf][0]);
+function heroAsset(k){const a=A[k];let dat=series(k+tf,a.price,TFS[tf][1],TFS[tf][0]);
+ let xl=TFL[tf],xr='now',tag=a.live?'recent shape \u00b7 history recording daily':'illustrative shape \u2014 offline';
+ const h=HIST[k];
+ if(h&&h.length>=8&&(tf==='1M'||tf==='1Y')){const seg=h.slice(tf==='1M'?-31:-370);dat=seg.map(x=>x.p);
+  xl=fdate(seg[0].d);xr='today';tag='recorded daily history \u00b7 '+seg.length+' days'}
  $('heroBody').innerHTML=`<div id="heroHead"><div><div id="heroName">${a.name}</div><div id="heroSub">${a.sub}${a.live?' · live':' · sample data'}</div></div>
  <div id="heroPrice" class="num">${a.unit}${fmt(a.price,a.dec)}</div><div id="heroChg" class="num ${cls(a.chg)}"><span class="car ${cls(a.chg)}"></span>${sgn(a.chg)}</div>
  <div id="tf">${Object.keys(TFS).map(t=>`<button class="tfp ${t===tf?'on':''}" data-t="${t}">${t}</button>`).join('')}</div></div>
@@ -385,7 +400,7 @@ function heroAsset(k){const a=A[k];const dat=series(k+tf,a.price,TFS[tf][1],TFS[
  <div id="heroNews"></div>`;
  typeInto($('heroNews'),newsFor(k));
  document.querySelectorAll('.tfp').forEach(b=>b.onclick=()=>{tf=b.dataset.t;heroAsset(k)});
- requestAnimationFrame(()=>animHero($('heroCv'),dat,a.chg>=0,null));
+ requestAnimationFrame(()=>animHero($('heroCv'),dat,a.chg>=0,null,{dec:a.dec,unit:a.unit,xl,xr,tag}));
 }
 function oddsFor(k){const o=ODDS[0]||{q:'Fed cuts by Sept',p:72};
  if(k==='BTC'||k==='ETH'||k==='SOL'){const b=ODDS.find(x=>/bitcoin|btc/i.test(x.q));return b?`${b.q}: ${b.p}%`:'Bitcoin above $150k: 41%'}
@@ -416,7 +431,7 @@ function heroCountry(cc){const d=C.find(x=>x.c===cc);const ixv=d.ix?A[d.ix].pric
  <div class="iline"><b>Why it matters today:</b> ${d.why} · <span style="color:var(--dim)">${d.el}</span></div>
  <div id="heroNews"><b>Latest:</b> ${d.news.join(' · ')}</div>`;
  document.querySelectorAll('.tfp').forEach(b=>b.onclick=()=>{tf=b.dataset.t;heroCountry(cc)});
- requestAnimationFrame(()=>animHero($('heroCv'),dat,ixc>=0,tf==='1Y'?d.ms:null));
+ requestAnimationFrame(()=>animHero($('heroCv'),dat,ixc>=0,tf==='1Y'?d.ms:null,{dec:0,unit:'',xl:TFL[tf],xr:'now',tag:(d.ix?A[d.ix].live:CLIVE[cc])?'index live \u00b7 curve illustrative until history builds':'illustrative shape \u2014 offline'}));
 }
 function crow(n,sub,p,ch,dec,key){return `<div class="arow"><div><div class="an">${n}</div><div class="as">${sub}</div></div><div><div class="ap num">${fmt(p,dec)}</div><div class="ac num ${cls(ch)}"><span class="car ${cls(ch)}"></span>${sgn(ch)}</div></div><canvas width="192" height="60" data-s="${key}"></canvas></div>`}
 let RC1HTML=null,RC2HTML=null,FLIVE={},CLIVE={};
@@ -516,6 +531,15 @@ async function livePoly(){try{const d=await jget('https://gamma-api.polymarket.c
  if(pick.length){const prev={};ODDS.forEach(o=>prev[o.q]=o.p);
  pick.forEach(o=>{if(prev[o.q]!==undefined&&Math.abs(o.p-prev[o.q])>=3)toast(`Odds moved: ${o.q}`,`${prev[o.q]}% \u2192 ${o.p}% on Polymarket`,o.p>=prev[o.q])});
  ODDS=pick;oddsLive=true;oddsPaint();story()}}catch(e){oddsLive=false;oddsPaint()}}
+function gstStamp(iso){try{return new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))}catch(e){return ''}}
+function applyExtra(d){if(!d)return;const ts=d.updated?` \u00b7 scout data as of ${gstStamp(d.updated)} GST`:'';
+ if(d.news&&d.news.length){const ex=d.news.map(n=>[n[0],n[1]]);WIRE=ex.concat(WIRE.filter(w=>!ex.some(e=>e[1]===w[1]))).slice(0,18);renderWire()}
+ if(d.assets){Object.keys(d.assets).forEach(k=>{const q=d.assets[k];if(A[k]&&q&&q.price>0)Object.assign(A[k],q,{live:true})});
+  if(d.assets.ADX||d.assets.DFM||d.assets.FAB){setBadge('#rc1 .badge',true);const sb=document.querySelector('#rc1 .sub');if(sb)sb.textContent='Abu Dhabi & Dubai exchanges'+ts}}
+ if(d.murban&&d.murban.price>0){Object.assign(A.MURBAN,d.murban,{live:true});setBadge('#cardOil .badge',true);
+  const sb=document.querySelector('#cardOil .sub');if(sb)sb.textContent='The world\u2019s fuel price \u2014 up is generally good news for the UAE'+ts}
+ paintAll();ticker();movers();story()}
+async function tryExtra(){try{applyExtra(await jget('extra.json?t='+Date.now()))}catch(e){}}
 function setBadge(sel,live){document.querySelectorAll(sel).forEach(b=>{b.className='badge '+(live?'live':'sample');b.textContent=live?'LIVE':'OFFLINE'})}
 async function tryDataJson(){try{const d=await jget('data.json?t='+Date.now());if(!d)return;
  if(d.assets){Object.keys(d.assets).forEach(k=>{if(A[k])Object.assign(A[k],d.assets[k],{live:true})});
@@ -525,6 +549,7 @@ async function tryDataJson(){try{const d=await jget('data.json?t='+Date.now());i
  if(d.fx)Object.assign(FX,d.fx);
  if(d.countries)Object.keys(d.countries).forEach(cc=>{const c=C.find(x=>x.c===cc);if(c&&!c.ix&&d.countries[cc].price>0){c.ixv=d.countries[cc].price;c.ixc=d.countries[cc].chg;CLIVE[cc]=true}});
  if(d.flagships)FLIVE=d.flagships;
+ if(d.history)HIST=d.history;
  if(d.assets&&(d.assets.FAB||d.assets.ADX))setBadge('#rc1 .badge',true);
  if(country)countryColumns(country);
  if(d.news&&d.news.length){WIRE=d.news;renderWire()}
@@ -568,9 +593,9 @@ const savedT=localStorage.getItem('efw-theme');if(savedT){document.documentEleme
 /* ---------- boot ---------- */
 paintCountries();paintAll();renderWire();heroAsset(focusList[0]);mood();story();movers();oddsPaint();ticker();clockTick();fit();
 setInterval(clockTick,1000);setInterval(paintCountries,30000);resetRot();
-restoreState();liveCrypto();liveFX();liveFNG();livePoly();tryDataJson();
+restoreState();liveCrypto();liveFX();liveFNG();livePoly();tryDataJson();tryExtra();
 setInterval(liveCrypto,60000);setInterval(livePoly,150000);setInterval(liveFNG,3600000);
-setInterval(()=>{saveState();location.reload()},600000);setInterval(tryDataJson,300000);setInterval(liveFX,3600000);
+setInterval(()=>{saveState();location.reload()},600000);setInterval(tryDataJson,300000);setInterval(tryExtra,300000);setInterval(liveFX,3600000);
 setInterval(()=>{const t=tzParts('Asia/Dubai');if(t.h===4&&t.m===0&&t.s<5){saveState();location.reload()}},4000);
 </script>
 </body>
